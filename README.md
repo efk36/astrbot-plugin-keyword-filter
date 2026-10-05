@@ -1,172 +1,49 @@
-# AstrBot + SnowLuma QQ 机器人部署（Ubuntu 24.04 / Docker Compose）
+# astrbot_plugin_keyword_filter
 
-架构：SnowLuma（OneBot v11 实现端，跑 QQ 客户端）→ 反向 WebSocket → AstrBot（WS 服务端）→ LLM
+AstrBot 插件：对话输入的敏感词过滤。在调用 LLM 之前检查用户消息，命中屏蔽词则终止本次对话并回复提示语。管理员和显式白名单不受影响。
 
-## 0. 环境自检（先把结果发我）
+## 安装
 
-```bash
-uname -m                 # 架构：x86_64 或 aarch64
-nproc                    # CPU 核数
-free -h                  # 内存（建议 ≥ 2G）
-df -h /                  # 磁盘剩余（建议 ≥ 10G）
-docker compose version   # 确认有 compose v2
-docker info | grep -E "Server Version|Architecture|Cgroup"
-sudo systemctl enable --now docker
-```
-
-## 1. 准备目录
+克隆到 AstrBot 的插件目录，或在 WebUI 插件市场里用仓库地址安装：
 
 ```bash
-sudo mkdir -p /opt/qqbot && cd /opt/qqbot
+cd /AstrBot/data/plugins
+git clone https://github.com/efk36/astrbot-plugin-keyword-filter.git
 ```
 
-把同目录下的 `compose.yml` 放到 `/opt/qqbot/compose.yml`。
+重启 AstrBot 后生效。
 
-```bash
-cd /opt/qqbot
-ls -l compose.yml
-docker compose config >/dev/null && echo "compose 语法 OK"
-```
+## 功能
 
-## 2. 启动
+- 多关键词屏蔽，命中任意一个即拦截
+- 匹配前做文本归一化，忽略大小写、全角/半角差异，以及空格和常见分隔符（`色 情`、`色-情`、`ｃolor` 都视为同一个词）
+- 支持按 QQ 号和按群号豁免
+- 可配置是否终止对话、是否回复提示语、提示语内容
+- 命中时在日志中记录发送者、群号和命中的词
+- `/屏蔽词` 命令：管理员查看当前生效的屏蔽词数量
 
-```bash
-cd /opt/qqbot
-docker compose pull
-docker compose up -d
-docker compose ps
-docker compose logs --tail=50
-```
+## 配置
 
-国内拉取慢时，编辑 compose.yml 把镜像换成代理源：
+在 AstrBot WebUI 的插件配置页面设置：
 
-- `motricseven7/snowluma:latest` → `m.daocloud.io/docker.io/motricseven7/snowluma:latest`
-- `soulter/astrbot:latest` → `m.daocloud.io/docker.io/soulter/astrbot:latest`
+| 配置项 | 类型 | 说明 |
+|---|---|---|
+| `enabled` | bool | 是否启用拦截 |
+| `block_keywords` | list | 屏蔽词列表 |
+| `bypass_user_ids` | list | 豁免 QQ 号（管理员已自动豁免） |
+| `bypass_group_ids` | list | 豁免群号，填了整群放行 |
+| `ignore_separators` | bool | 匹配时是否忽略分隔符 |
+| `block_action.stop_event` | bool | 命中后是否终止对话 |
+| `block_action.reply` | bool | 命中后是否回复提示 |
+| `block_action.reply_text` | text | 提示语 |
+| `log_hit` | bool | 是否记录命中日志 |
 
-## 3. QQ 登录
+## 更新日志
 
-```bash
-# 取 noVNC password
-docker logs snowluma 2>&1 | grep -aE "远程桌面密码|remote desktop password" | tail -n 1
+### 1.0.1
 
-# 取 WebUI 临时密码
-docker logs snowluma 2>&1 | grep -aE "临时密码|initial credentials" | tail -n 1
+修复命中提示发送失败的问题。`event.send()` 只接受 `MessageChain`，此前直接传字符串会在 aiocqhttp 平台适配器里抛 `AttributeError: 'str' object has no attribute 'chain'`。改为 `event.send(event.plain_result(text))`。
 
-# 校验 ptrace 能力（应含 cap_sys_ptrace=ep）
-docker exec snowluma getcap /usr/local/bin/node
-```
+## 兼容性
 
-浏览器打开 `http://<服务器IP>:6081/` → 输入 VNC 密码 → 进入远程桌面 → 扫码登录 QQ。
-
-再打开 `http://<服务器IP>:5099/` → 输入 WebUI 密码 → 进入 SnowLuma 配置界面。
-
-AstrBot WebUI：`http://<服务器IP>:6185/`，默认用户名 `astrbot`，密码 `astrbot`。
-
-## 4. 配置 SnowLuma 反向 WebSocket
-
-方式 A（推荐，WebUI）：SnowLuma WebUI → 网络配置 → 新建 → WebSockets 客户端：
-
-| 字段 | 值 |
-|---|---|
-| name | `astrbot` |
-| url | `ws://astrbot:6199/ws` |
-| role | `Universal` |
-| enabled | `true` |
-| accessToken | 留空（与 AstrBot 一致） |
-
-方式 B（文件）：编辑 `/app/data/config/onebot.json`（宿主机用 `docker exec` 或 volume 挂载目录）：
-
-```json
-{
-  "wsClients": [
-    {
-      "name": "astrbot",
-      "enabled": true,
-      "url": "ws://astrbot:6199/ws",
-      "role": "Universal",
-      "reconnectIntervalMs": 5000,
-      "messageFormat": "array",
-      "reportSelfMessage": false
-    }
-  ]
-}
-```
-
-改完 `docker restart snowluma`。
-
-> 注意：url 里的 `astrbot` 是 compose 网络内的服务名，不要填 `127.0.0.1`。
-
-## 5. 配置 AstrBot OneBot v11
-
-AstrBot WebUI → 平台管理 → OneBot v11 (aiocqhttp)：
-
-| 字段 | 值 |
-|---|---|
-| 启用 | ✅ |
-| 反向 WebSocket 主机地址 | `0.0.0.0` |
-| 反向 WebSocket 端口 | `6199` |
-| 反向 WebSocket Token | 留空 |
-
-保存后 AstrBot 日志应出现平台连接成功的日志。
-
-## 6. 配置 LLM provider
-
-AstrBot WebUI → 服务提供商 → 添加（如 OpenAI 兼容接口）：
-
-- api_base：你的中转/官方地址
-- api_key
-- model：模型名
-
-再到「功能配置」里开启对话功能，确认 wake prefix（默认 `/`）。
-
-## 7. 验证
-
-```bash
-# 容器状态
-docker compose -f /opt/qqbot/compose.yml ps
-
-# SnowLuma 是否已连上 AstrBot
-docker logs snowluma --tail=100 | grep -ai "astrbot\|ws"
-
-# AstrBot 侧是否收到事件
-docker logs astrbot --tail=100
-
-# OneBot HTTP 连通性
-curl -s http://127.0.0.1:3000/get_status_info
-```
-
-在 QQ 上对机器人发消息，应收到回复。
-
-## 8. 日常运维
-
-```bash
-cd /opt/qqbot
-docker compose logs -f astrbot      # 看 AstrBot 日志
-docker compose logs -f snowluma     # 看 SnowLuma 日志
-docker compose restart astrbot      # 重启
-docker compose pull && docker compose up -d   # 升级（保留数据卷）
-docker compose down                 # 停止（保留数据卷）
-```
-
-**切勿 `docker compose down -v`**，会删掉 QQ 登录态。
-
-## 9. 防火墙
-
-已按用户要求全部监听 0.0.0.0，若启用了 ufw：
-
-```bash
-sudo ufw allow 6185/tcp
-sudo ufw allow 6081/tcp
-sudo ufw allow 5099/tcp
-# 3000/3001 是 OneBot 接口，无需公网暴露，可不对外开放
-```
-
-## 10. 排障
-
-| 现象 | 原因 / 处理 |
-|---|---|
-| QQ 扫码后掉线 | 服务器在境外或 IP 被风控；给容器配代理后再试 |
-| AstrBot 收不到消息 | 检查 SnowLuma 的 wsClients url 是否为 `ws://astrbot:6199/ws`；两端 token 是否一致 |
-| `docker exec snowluma getcap` 无输出 | compose 里 `--cap-add=SYS_PTRACE` / `seccomp=unconfined` 缺失 |
-| AstrBot WebUI 打不开 | `docker logs astrbot` 看是否启动异常；确认 6185 未被占用 |
-| 修改 compose 后不生效 | `docker compose up -d --force-recreate` |
+需要 AstrBot >= 4.0.0。在 aiocqhttp (OneBot v11) 平台上测试通过。
