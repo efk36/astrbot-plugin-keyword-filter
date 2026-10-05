@@ -1,6 +1,6 @@
 name: astrbot_plugin_keyword_filter
 display_name: 关键词屏蔽
-short_desc: 对话输入的敏感词过滤，管理员和白名单可豁免
+desc: 对话输入的敏感词过滤，管理员和白名单可豁免
 version: 1.0.1
 author: efk36
 repo: https://github.com/efk36/astrbot-plugin-keyword-filter
