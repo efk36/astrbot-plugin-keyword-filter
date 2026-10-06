@@ -4,22 +4,24 @@ AstrBot 插件：对话输入的敏感词过滤。在调用 LLM 之前检查用�
 
 ## 安装
 
-**方式一：下载 ZIP 直接用**
+**方式一：WebUI 插件市场**
+
+在 AstrBot WebUI 的插件市场搜索「关键词屏蔽」安装。
+
+**方式二：下载 ZIP 直接用**
 
 [astrbot_plugin_keyword_filter_v1.0.1.zip](https://github.com/efk36/astrbot-plugin-keyword-filter/releases/download/v1.0.1/astrbot_plugin_keyword_filter_v1.0.1.zip)
 
 下载后解压，把 `astrbot_plugin_keyword_filter` 目录放进 AstrBot 的 `data/plugins/` 下，重启 AstrBot。
 
-**方式二：从仓库安装**
-
-克隆到 AstrBot 的插件目录，或在 WebUI 插件市场里用仓库地址安装：
+**方式三：从仓库安装**
 
 ```bash
 cd /AstrBot/data/plugins
 git clone https://github.com/efk36/astrbot-plugin-keyword-filter.git
 ```
 
-重启 AstrBot 后生效。
+`metadata.yaml` 在仓库根目录，重启 AstrBot 后生效。
 
 ## 功能
 
@@ -54,4 +56,4 @@ git clone https://github.com/efk36/astrbot-plugin-keyword-filter.git
 
 ## 兼容性
 
-需要 AstrBot >= 4.0.0。在 aiocqhttp (OneBot v11) 平台上测试通过.
+需要 AstrBot >= 4.0.0。在 aiocqhttp (OneBot v11) 平台上测试通过。
