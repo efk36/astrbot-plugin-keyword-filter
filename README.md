@@ -54,6 +54,8 @@ git clone https://github.com/efk36/astrbot-plugin-keyword-filter.git
 
 修复命中提示发送失败的问题。`event.send()` 只接受 `MessageChain`，此前直接传字符串会在 aiocqhttp 平台适配器里抛 `AttributeError: 'str' object has no attribute 'chain'`。改为 `event.send(event.plain_result(text))`。
 
+仓库结构改为 `metadata.yaml` 在根目录，修复从仓库安装时提示「未在仓库根目录找到 metadata.yaml」的问题。`metadata.yaml` 补充 `short_desc`、`tags`、`support_platforms`、`social_link`，便于在插件市场被检索到。
+
 ## 兼容性
 
 需要 AstrBot >= 4.0.0。在 aiocqhttp (OneBot v11) 平台上测试通过。
