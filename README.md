@@ -1,16 +1,18 @@
 # astrbot_plugin_keyword_filter
 
-AstrBot 插件：对话输入的敏感词过滤。在调用 LLM 之前检查用户消息，命中屏蔽词则终止本次对话并回复提示语。管理员和显式白名单不受影响。
+对话输入的敏感词过滤插件。在调用 LLM 之前检查用户消息，命中屏蔽词则终止本次对话并回复提示语。
+
+管理员和显式白名单不受影响。
 
 ## 安装
 
 **方式一：WebUI 插件市场**
 
-在 AstrBot WebUI 的插件市场搜索「关键词屏蔽」安装。
+在 AstrBot WebUI 的插件市场搜索「敏感词过滤」安装。
 
 **方式二：下载 ZIP 直接用**
 
-[astrbot_plugin_keyword_filter_v1.0.1.zip](https://github.com/efk36/astrbot-plugin-keyword-filter/releases/download/v1.0.1/astrbot_plugin_keyword_filter_v1.0.1.zip)
+[astrbot_plugin_keyword_filter_v1.0.2.zip](https://github.com/efk36/astrbot-plugin-keyword-filter/releases/download/v1.0.2/astrbot_plugin_keyword_filter_v1.0.2.zip)
 
 下载后解压，把 `astrbot_plugin_keyword_filter` 目录放进 AstrBot 的 `data/plugins/` 下，重启 AstrBot。
 
@@ -27,10 +29,20 @@ git clone https://github.com/efk36/astrbot-plugin-keyword-filter.git
 
 - 多关键词屏蔽，命中任意一个即拦截
 - 匹配前做文本归一化，忽略大小写、全角/半角差异，以及空格和常见分隔符（`色 情`、`色-情`、`ｃolor` 都视为同一个词）
-- 支持按 QQ 号和按群号豁免
+- 支持按 QQ 号豁免（`bypass_user_ids`）
+- 支持按群号豁免（`bypass_group_ids`）：填了群号，该群所有人不受屏蔽影响
 - 可配置是否终止对话、是否回复提示语、提示语内容
 - 命中时在日志中记录发送者、群号和命中的词
 - `/屏蔽词` 命令：管理员查看当前生效的屏蔽词数量
+
+## 豁免配置
+
+在 WebUI 插件配置页：
+
+- `bypass_user_ids`：填 QQ 号，指定的人永远放行（管理员本身已自动豁免）
+- `bypass_group_ids`：填群号，该群里所有人（包括普通成员）都不拦截
+
+> 注意：私聊不受 `bypass_group_ids` 影响，只看 `bypass_user_ids` 和管理员身份。
 
 ## 配置
 
@@ -50,11 +62,13 @@ git clone https://github.com/efk36/astrbot-plugin-keyword-filter.git
 
 ## 更新日志
 
+### 1.0.2
+
+- 插件显示名改为「敏感词过滤」
+
 ### 1.0.1
 
-修复命中提示发送失败的问题。`event.send()` 只接受 `MessageChain`，此前直接传字符串会在 aiocqhttp 平台适配器里抛 `AttributeError: 'str' object has no attribute 'chain'`。改为 `event.send(event.plain_result(text))`。
-
-仓库结构改为 `metadata.yaml` 在根目录，修复从仓库安装时提示「未在仓库根目录找到 metadata.yaml」的问题。`metadata.yaml` 补充 `short_desc`、`tags`、`support_platforms`、`social_link`，便于在插件市场被检索到。
+修复命中提示发送失败的问题。`event.send()` 只接受 `MessageChain`，改为 `event.send(event.plain_result(text))`。
 
 ## 兼容性
 
